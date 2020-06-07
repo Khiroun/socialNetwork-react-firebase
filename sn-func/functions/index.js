@@ -24,6 +24,38 @@ firebase.initializeApp(config);
 
 const db = admin.firestore();
 
+const fbAuth = (req, res, next) => {
+  const { authorization } = req.headers;
+  const bearer = "Bearer ";
+  let idToken;
+  if (authorization && authorization.startsWith(bearer)) {
+    idToken = authorization.split(bearer)[1];
+  } else {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
+
+  admin
+    .auth()
+    .verifyIdToken(idToken)
+    .then((decodedToken) => {
+      req.user = decodedToken;
+      console.log(decodedToken);
+      return db
+        .collection("users")
+        .where("userId", "==", decodedToken.uid)
+        .limit(1)
+        .get();
+    })
+    .then((data) => {
+      req.user.handle = data.docs[0].data().handle;
+      return next();
+    })
+    .catch((err) => {
+      console.error(err);
+      return res.status(403).json(err);
+    });
+};
+
 app.get("/screams", (req, res) => {
   db.collection("screams")
     .orderBy("createdAt", "desc")
@@ -41,10 +73,10 @@ app.get("/screams", (req, res) => {
     .catch((err) => console.error(err));
 });
 
-app.post("/scream", (req, res) => {
+app.post("/scream", fbAuth, (req, res) => {
   const newScream = {
     body: req.body.body,
-    userHandle: req.body.userHandle,
+    userHandle: req.user.handle,
     createdAt: new Date().toISOString(),
   };
 
@@ -147,7 +179,7 @@ app.post("/login", (req, res) => {
       return data.user.getIdToken();
     })
     .then((token) => {
-      return res.json(token);
+      return res.json({ token });
     })
     .catch((err) => {
       if (err.code === "auth/wrong-password")
