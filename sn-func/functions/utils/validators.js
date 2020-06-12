@@ -40,3 +40,19 @@ exports.validateLoginData = ({ email, password }) => {
     valid: Object.keys(errors).length === 0,
   };
 };
+
+exports.reduceUserDetails = ({ bio, website, location }) => {
+  const userDetails = {};
+  const b = bio ? bio.trim() : "";
+  const w = website ? website.trim() : "";
+  const l = location ? location.trim() : "";
+  if (!isEmpty(b)) userDetails.bio = b;
+  if (!isEmpty(w)) {
+    const http = "http";
+    let validWebsite = w;
+    if (w.substring(0, 4) !== http) validWebsite = `${http}://${w}`;
+    userDetails.website = validWebsite;
+  }
+  if (!isEmpty(l)) userDetails.location = l;
+  return userDetails;
+};
